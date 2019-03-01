@@ -8,31 +8,18 @@ const userSQL = require('./../db/userSql');
 
 const pool = mysql.createPool(dbConfig.mysql);
 
-const responseJSON = (res, ret) => {
-    if(typeof ret === 'undefined') {
-        res.json({
-            code: '-200',
-            msg: '操作失败'
-        });
-    } else {
-        res.json(ret);
-    }
-}
-
 
 /* GET users listing. */
 
 // 用户登录
 router.post('/login', function (req, res, next) {
-
-    console.log('login');
+    console.log(12)
 
     pool.getConnection(function (err, connection) {
 
         let param = req.body;
         const UserName = param.username;
         const Password = param.password;
-        const _res = res;
 
         if(err){
             console.log('-------err----');
@@ -40,34 +27,39 @@ router.post('/login', function (req, res, next) {
             return;
         }
 
-        connection.query(userSQL.queryAll, function (err, res, result) {
-            let isTrue = false;
-            if(res){
-                for(let i=0; i<res.length; i++){
-                    if(res[i].username === UserName && res[i].password === Password){
+        connection.query(userSQL.queryAll, function (qerr, qres, fields) {
+            let isLogin = false;
+            let name = '';
+            let data = {};
 
-                        req.session.sessionId = res[i].uid; // 登录成功，设置 session
+            if (qerr) {
+                data.msg = qerr;
+                data.code = '500';
+            }
 
-                        console.log(res[i].uid);
-                        console.log(req.session.sessionId);
+            if (qres) {
+                for (let i = 0; i < qres.length; i++) {
 
-                        isTrue = true;
+                    if(qres[i].username === UserName && qres[i].password === Password){
+
+                        req.session.sessionId = qres[i].uid; // 登录成功，设置 session
+                        name = qres[i].name;
+                        isLogin = true;
+
                     }
                 }
             }
-            let data = {};
-            data.isLogin = isTrue;
-            if(isTrue){
-                req.session.userName = req.body.username; // 登录成功，设置 session
 
+            if(isLogin){
+
+                // 优化 为何data还要套一层对象
+                req.session.userName = req.body.username; // 登录成功，设置 session
                 data.code = '200';
                 data.msg = '登录成功';
-                data.data = {}
+                data.data = {id: req.session.sessionId, name}
             }
 
-            if(err)
-                data.err = err;
-            responseJSON(_res, data);
+            res.json(data);
 
             // 释放链接
             connection.release();
@@ -149,9 +141,6 @@ router.post('/register', function (req, res, next) {
 
 router.get('/info', function (req, res, next) {
     pool.getConnection(function (err, connection) {
-        const _res = res;
-
-        console.log('chufa');
 
         if(err) {
             console.log('----err----');
@@ -159,19 +148,24 @@ router.get('/info', function (req, res, next) {
             return;
         }
 
-        console.log(req.session);
-
         const sql = "SELECT * FROM info WHERE uid ='" + req.session.sessionId + "'";
-        console.log(sql);
 
-        connection.query(sql, function (err, res, result) {
+        connection.query(sql, function (qerr, qres, result) {
+
             let isTrue = false;
-            if(res){
-                for(let i=0; i<res.length; i++){
+            let data = {};
+
+
+            if(qerr) {
+                data.code = '500';
+                data.msg = qerr;
+            }
+
+            if(qres){
+                for(let i = 0; i < qres.length; i++){
                     isTrue = true;
                 }
             }
-            let data = {};
             if(isTrue){
 
                 data.code = '200';
@@ -179,9 +173,7 @@ router.get('/info', function (req, res, next) {
                 data.data = {}
             }
 
-            if(err)
-                data.err = err;
-            responseJSON(_res, data);
+            res.json(data);
 
             // 释放链接
             connection.release();

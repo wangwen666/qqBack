@@ -1,15 +1,18 @@
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var session = require("express-session");
-var logger = require('morgan');
+const createError = require('http-errors');
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const session = require("express-session");
+const logger = require('morgan');
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
-var contactRouter = require('./routes/contact');
+const indexRouter = require('./routes/index');
+const usersRouter = require('./routes/users');
+const contactRouter = require('./routes/contact');
+const fileUpload = require('./routes/uploadFile');
 
-var app = express();
+const createServer = require('./ws');
+
+const app = express();
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -19,32 +22,7 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
-
-
-
-app.use(function(req, res, next) {
-
-    console.log(req.cookies);
-    console.log(req.cookies['connect.sid']);
-
-    if (!req.cookies['connect.sid']) {
-        console.log(req.url);
-        if (req.url === '/user/login' || req.url === '/user/loginCheck') {
-            next(); //如果请求的地址是登录则通过，进行下一个请求
-        } else {
-            // req.session.sessionId = ''; // 登录成功，设置 session
-
-            // 返回信息 登录已过时
-            res.json({
-                code: '-200',
-                msg: '请重新登录'
-            });
-        }
-    } else if (req.cookies['connect.sid']) {
-        next();
-    }
-})
+app.use(express.static(path.join(__dirname, '/public'))); // 静态资源的目录
 
 app.use(session({
     secret :  'secret', // 对session id 相关的cookie 进行签名
@@ -58,6 +36,7 @@ app.use(session({
 app.use('/', indexRouter);
 app.use('/user', usersRouter);
 app.use('/contact', contactRouter);
+app.use('/file', fileUpload);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -85,10 +64,14 @@ app.use(function(err, req, res, next) {
 //   debug('Express server listening on port'+server.address().port);
 // }))
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3333;
 
 app.listen(port, function () {
     console.log('Updated : Server listening at port %d', port);
 });
+
+createServer();
+
+
 
 // module.exports = app;
